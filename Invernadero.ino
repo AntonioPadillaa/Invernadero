@@ -9,6 +9,7 @@
                   /***  addr,en,rw,rs,d4,d5,d6,d7,bl,blpol***/
 LiquidCrystal_I2C lcd1(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 LiquidCrystal_I2C lcd2(0x26, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+LiquidCrystal_I2C lcd3(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
   /*** DECLARACION DE VARIABLES ***/
   
@@ -25,19 +26,27 @@ int calentador = 5;
 int sensorValueLDR = 0;
 int lampara =  11; 
 int sensorLDR = A7;
+/*** HUMEDAD DE SUELO ***/
+int sensorSuelo;
+int bombaRiego = 12;
+
   /*** ESPECIFICACION DEL TIPO DE SENSOR ***/
 DHT dht(sensorDHT, DHT11);
   /*** INICIALIZACION DE LOS COMPONENTES QUE SE UTILIZARAN ***/
 void setup() {
+  Serial.begin(9600);
   lcd1.clear();
   lcd2.clear();
+  lcd3.clear();
   lcd1.begin(20, 4);
   lcd2.begin(20, 4);
+  lcd3.begin(16, 2);
   pinMode(enfriador1,OUTPUT);
   pinMode(calentador,OUTPUT);
   pinMode(extractor1, OUTPUT);
   pinMode(bombaIncendio, OUTPUT);
   pinMode(lampara, OUTPUT); 
+  pinMode(bombaRiego, OUTPUT); 
 }
 /****** FUNCIONES HUMO ******/
 void inicioHumo(){
@@ -158,10 +167,42 @@ void luzOn(){
 void luzOff(){
   digitalWrite(lampara, LOW);
 }
+/****** FUNCIONES HUMEDAD SUELO ******/
+void inicioSuelo(){
+  lcd3.setCursor(0, 0);
+  lcd3.print("Suelo: ");
+  lcd3.setCursor(0, 1);
+  lcd3.print("Riego:");
+}
+void sueloSeco(){
+  inicioSuelo();
+  //digitalWrite(bombaRiego,HIGH);
+  lcd3.setCursor(8, 0);
+  lcd3.print("Seco   ");
+  lcd3.setCursor(7, 1);
+  lcd3.print("Encendido");
+}
+void sueloHumedo(){
+  inicioSuelo();
+  //digitalWrite(bombaRiego,HIGH);
+  lcd3.setCursor(8, 0);
+  lcd3.print("Humedo ");
+  lcd3.setCursor(7, 1);
+  lcd3.print("Encendido");
+}
+void sueloMojado(){
+  //digitalWrite(bombaRiego,LOW);
+  inicioSuelo();
+  lcd3.setCursor(8, 0);
+  lcd3.print("Mojado ");
+  lcd3.setCursor(7, 1);
+  lcd3.print("Apagado  ");
+}
 void loop() {
 /****** FORMATO DE DATOS DE INICIO DE CADA PANTALLA ******/ 
   inicioTemperatura();
   inicioHumo();
+  inicioSuelo();
   
  /****** LECTURA ANALOGICA DE LOS SENSORES DE 
           TEMPERATURA Y HUMEDAD, HUMO, SUELO E
@@ -170,6 +211,7 @@ void loop() {
   humedad = dht.readHumidity();
   sensorValue = analogRead(A5); 
   sensorValueLDR = analogRead (sensorLDR);
+  sensorSuelo = analogRead(A1);
 
   /****** FUNCIONAMIENTO TEMPERATURA ******/
   if (temp>=25)
@@ -189,11 +231,11 @@ void loop() {
     calefaccionOff();
    }
    /****** FUNCIONAMIENTO DETECTOR DE HUMO ******/
-  if(sensorValue < 1500 && sensorValue >= 400)
+  if(sensorValue < 1500 && sensorValue >= 200)
   {
     detectado();
   }
-  else if (sensorValue < 400 && sensorValue >= 100)
+  else if (sensorValue < 200 && sensorValue >= 100)
   {
     despejado();
   }
@@ -204,13 +246,24 @@ void loop() {
   /****** FUNCIONAMIENTO LUZ AUTOMATICA  ******/
    if (sensorValueLDR <= 800) 
   {   
-    //luzOn();
     luzOff();
   }
-  else if (sensorValueLDR > 800) 
+  else if (sensorValueLDR >= 800) 
   {
-    //luzOff();
     luzOn();
+  }
+  /****** FUNCIONAMIENTO SENSOR DE SUELO  ******/
+  /*if(sensorSuelo >= 1000){
+    sensorDesconectado();
+  }*/
+  if(sensorSuelo <= 999 && sensorSuelo >= 600){
+   sueloSeco();
+  }
+  else if(sensorSuelo <= 599 && sensorSuelo >= 370){
+   sueloHumedo();
+  }
+   else if(sensorSuelo < 370){
+   sueloMojado();
   }
   delay(1000);
 }
