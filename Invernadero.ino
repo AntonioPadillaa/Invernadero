@@ -2,6 +2,8 @@
 #include <DHT.h>
 #include <Wire.h>              // LIBRERIA PARA LA COMUNICACION DE COMPONENTE I2C
 #include <LiquidCrystal_I2C.h> // LIBRERIA PARA COMPONENTE I2C
+#include <SoftwareSerial.h>    // LIBRERIA PARA COMUNICACION SIM900 GPRS/GSM
+SoftwareSerial SIM900(10, 11);   // CONFIGURACION DEL PUERTO SERIE PARA EL SIM900 GPRS/GSM
 
   /*** INICIALIZACION DE LCD's 20X4 Y 16X2 CONFIGURACION DE LAS PANTALLAS ***/
        
@@ -9,32 +11,32 @@
                   /***  addr,en,rw,rs,d4,d5,d6,d7,bl,blpol***/
 LiquidCrystal_I2C lcd1(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 LiquidCrystal_I2C lcd2(0x26, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
-LiquidCrystal_I2C lcd3(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+LiquidCrystal_I2C lcd3(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  
+
 
   /*** DECLARACION DE VARIABLES ***/
-  
 /*** DETECTOR DE HUMO ***/
 int sensorValue=0;
-int extractor1 = 6;
-int bombaIncendio = 10;
+int extractor1 = 28;
+int bombaIncendio = 50;
 /*** TEMPERATURA ***/
 int temp, humedad;
-int sensorDHT = 2;
-int enfriador1 = 3;
-int calentador = 5;
+int sensorDHT = 52;
+int enfriador1 = 26;
+int calentador = 51;
 /*** ILUMINACION ***/
 int sensorValueLDR = 0;
-int lampara =  11; 
+int lampara =  53; 
 int sensorLDR = A7;
 /*** HUMEDAD DE SUELO ***/
 int sensorSuelo;
-int bombaRiego = 12;
+int bombaRiego = 47;
 
   /*** ESPECIFICACION DEL TIPO DE SENSOR ***/
 DHT dht(sensorDHT, DHT11);
   /*** INICIALIZACION DE LOS COMPONENTES QUE SE UTILIZARAN ***/
 void setup() {
-  Serial.begin(9600);
+  SIM900.begin(19200); 
   lcd1.clear();
   lcd2.clear();
   lcd3.clear();
@@ -65,7 +67,7 @@ void datoshumo(){
   lcd2.setCursor(8, 1);
   lcd2.print(sensorValue);
 }
-void detectado(){
+void detectado(){ 
   inicioHumo();
   digitalWrite(extractor1, HIGH);
   lcd2.setCursor(7, 0);
@@ -74,6 +76,18 @@ void detectado(){
   lcd2.print("ENCENDIDO");
   lcd2.setCursor(8, 3);
   lcd2.print(" ACTIVADA  ");
+  sensorValue = analogRead(A5); 
+  mensaje_sms();
+}
+void extraccion(){ 
+  inicioHumo();
+  digitalWrite(extractor1, HIGH);
+  lcd2.setCursor(7, 0);
+  lcd2.print("DETECTADO");
+  lcd2.setCursor(10, 2);
+  lcd2.print("ENCENDIDO");
+  lcd2.setCursor(8, 3);
+  lcd2.print("DESACTIVADA");
   sensorValue = analogRead(A5); 
 }
 void despejado(){
@@ -126,39 +140,51 @@ void datoshumedad(){
 }
 void enfriamientoOn(){
   digitalWrite(enfriador1,HIGH);
+  temp= dht.readTemperature();
+  humedad = dht.readHumidity();
   datoshumedad();
   datostemperatura();
   lcd1.setCursor(11, 2);
   lcd1.print("ENCENDIDO");
-  temp= dht.readTemperature();
-  humedad = dht.readHumidity();
+
 }
 void enfriamientoOff(){
   digitalWrite(enfriador1,LOW);
+  temp= dht.readTemperature();
+  humedad = dht.readHumidity();
   datoshumedad();
   datostemperatura();
   lcd1.setCursor(11, 2);
   lcd1.print(" APAGADO ");
+}
+void incendio(){
+  digitalWrite(enfriador1,LOW);
   temp= dht.readTemperature();
   humedad = dht.readHumidity();
+  datoshumedad();
+  datostemperatura();
+  lcd1.setCursor(11, 2);
+  lcd1.print(" APAGADO ");
 }
 void calefaccionOn(){
   digitalWrite(calentador,HIGH); //Encendemos el ventilador
+  temp= dht.readTemperature(); //Volvemos a leer la temperatura
+  humedad = dht.readHumidity();
   datoshumedad();
   datostemperatura();
   lcd1.setCursor(11, 3);
   lcd1.print("ENCENDIDO");
-  temp= dht.readTemperature(); //Volvemos a leer la temperatura
-  humedad = dht.readHumidity();
+
 }
 void calefaccionOff(){
   digitalWrite(calentador,LOW); //Encendemos el ventilador
+   temp= dht.readTemperature(); //Volvemos a leer la temperatura
+  humedad = dht.readHumidity();
   datoshumedad();
   datostemperatura();
   lcd1.setCursor(11, 3);
   lcd1.print(" APAGADO ");
-  temp= dht.readTemperature(); //Volvemos a leer la temperatura
-  humedad = dht.readHumidity();
+
 }
 /****** FUNCIONES LUZ ******/
 void luzOn(){
@@ -198,6 +224,24 @@ void sueloMojado(){
   lcd3.setCursor(7, 1);
   lcd3.print("Apagado  ");
 }
+/****** FUNCIONES ENVIO DE MENSAJE ******/
+void mensaje_sms(){
+      Serial.println("Enviando SMS...");
+      SIM900.print("AT+CMGF=1\r");  //Configura el modo texto para enviar o recibir mensajes
+      delay(1000);
+      SIM900.println("AT+CMGS=\"3339500076\"");  //Numero al que vamos a enviar el mensaje
+      delay(1000);
+      //SIM900.println("SMS enviado desde un Arduino.");  // Texto del SMS
+      SIM900.println("-ALERTA DE INCENDIO-\n");  // Texto del SMS
+      SIM900.println("Ubicacion:");  // Texto del SMS
+      SIM900.println("Calle Jose Guadalupe Zuno Hernandez #1964 Col. Americana, C.P. #44160 Guadalajara, Jal."); //Colocamos la url de google maps
+      SIM900.println("https://goo.gl/maps/XufCJYDJKG32");  // Texto del 
+      delay(100);
+      SIM900.println((char)26); //Comando de finalización ^Z
+      delay(100);
+      SIM900.println();
+      //delay(5000);  // Esperamos un tiempo para que envíe el SMS
+}
 void loop() {
 /****** FORMATO DE DATOS DE INICIO DE CADA PANTALLA ******/ 
   inicioTemperatura();
@@ -231,11 +275,20 @@ void loop() {
     calefaccionOff();
    }
    /****** FUNCIONAMIENTO DETECTOR DE HUMO ******/
-  if(sensorValue < 1500 && sensorValue >= 200)
+  /*if(sensorValue < 1500 && sensorValue >= 400)
   {
     detectado();
+  }*/
+    if(sensorValue < 1500 && sensorValue >= 400 && temp>=25)
+  {
+    incendio();
+    detectado();
   }
-  else if (sensorValue < 200 && sensorValue >= 100)
+  else if(sensorValue < 1500 && sensorValue >= 400)
+  {
+    extraccion();
+  }
+  else if (sensorValue < 400 && sensorValue >= 100)
   {
     despejado();
   }
@@ -243,6 +296,7 @@ void loop() {
   {
     correccion();
   }
+
   /****** FUNCIONAMIENTO LUZ AUTOMATICA  ******/
    if (sensorValueLDR <= 800) 
   {   
