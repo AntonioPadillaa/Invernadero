@@ -16,11 +16,13 @@ LiquidCrystal_I2C lcd3(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
   /*** DECLARACION DE VARIABLES ***/
 /*** DETECTOR DE HUMO ***/
-int sensorValue=0;
+int sensorValueMQ=0;
+int sensorHumo = A5; 
 int extractor1 = 28;
-int bombaIncendio = 50;
+int bombaIncendio = 40;
 /*** TEMPERATURA ***/
-int temp, humedad;
+int temp = 0;
+int humedad = 0;
 int sensorDHT = 52;
 int enfriador1 = 26;
 int calentador = 51;
@@ -29,8 +31,9 @@ int sensorValueLDR = 0;
 int lampara =  53; 
 int sensorLDR = A7;
 /*** HUMEDAD DE SUELO ***/
-int sensorSuelo;
-int bombaRiego = 47;
+int sensorValueYL = 0;
+int sensorSuelo = A1;
+int bombaRiego = 38;
 
   /*** ESPECIFICACION DEL TIPO DE SENSOR ***/
 DHT dht(sensorDHT, DHT11);
@@ -56,7 +59,7 @@ void inicioHumo(){
   lcd2.setCursor(0, 0);
   lcd2.print("HUMO:");
   lcd2.setCursor(0, 1);
-  lcd2.print("PPM CO:");
+  lcd2.print("PPM CO2:");
   lcd2.setCursor(0, 2);
   lcd2.print("EXTRACTOR:");
   lcd2.setCursor(0, 3);
@@ -64,19 +67,20 @@ void inicioHumo(){
 }
 void datoshumo(){
   lcd2.clear();
-  lcd2.setCursor(8, 1);
-  lcd2.print(sensorValue);
+  lcd2.setCursor(9, 1);
+  lcd2.print(sensorValueMQ);
 }
 void detectado(){ 
   inicioHumo();
   digitalWrite(extractor1, HIGH);
+  digitalWrite(bombaIncendio, HIGH);
   lcd2.setCursor(7, 0);
   lcd2.print("DETECTADO");
   lcd2.setCursor(10, 2);
   lcd2.print("ENCENDIDO");
   lcd2.setCursor(8, 3);
   lcd2.print(" ACTIVADA  ");
-  sensorValue = analogRead(A5); 
+  sensorValueMQ = analogRead(sensorHumo); 
   mensaje_sms();
 }
 void extraccion(){ 
@@ -88,24 +92,26 @@ void extraccion(){
   lcd2.print("ENCENDIDO");
   lcd2.setCursor(8, 3);
   lcd2.print("DESACTIVADA");
-  sensorValue = analogRead(A5); 
+  sensorValueMQ = analogRead(sensorHumo); 
 }
 void despejado(){
   inicioHumo();
   correccion();
   digitalWrite(extractor1, LOW);
+  digitalWrite(bombaIncendio, LOW);
   lcd2.setCursor(7, 0);
   lcd2.print("DESPEJADO");
   lcd2.setCursor(10, 2);
   lcd2.print(" APAGADO ");
   lcd2.setCursor(8, 3);
   lcd2.print("DESACTIVADA");
-  sensorValue = analogRead(A5); 
+  sensorValueMQ = analogRead(sensorHumo); 
 }
 void correccion(){
   inicioHumo();
   digitalWrite(extractor1, LOW);
-  lcd2.setCursor(11, 1);
+  digitalWrite(bombaIncendio, LOW);
+  lcd2.setCursor(12, 1);
   lcd2.print(" ");
   lcd2.setCursor(7, 0);
   lcd2.print("DESPEJADO");
@@ -113,7 +119,7 @@ void correccion(){
   lcd2.print(" APAGADO ");
   lcd2.setCursor(8, 3);
   lcd2.print("DESACTIVADA");
-  sensorValue = analogRead(A5); 
+  sensorValueMQ = analogRead(sensorHumo); 
 }
 /****** FUNCIONES TEMPERATURA ******/
 void inicioTemperatura(){
@@ -174,7 +180,6 @@ void calefaccionOn(){
   datostemperatura();
   lcd1.setCursor(11, 3);
   lcd1.print("ENCENDIDO");
-
 }
 void calefaccionOff(){
   digitalWrite(calentador,LOW); //Encendemos el ventilador
@@ -184,7 +189,6 @@ void calefaccionOff(){
   datostemperatura();
   lcd1.setCursor(11, 3);
   lcd1.print(" APAGADO ");
-
 }
 /****** FUNCIONES LUZ ******/
 void luzOn(){
@@ -199,30 +203,33 @@ void inicioSuelo(){
   lcd3.print("Suelo: ");
   lcd3.setCursor(0, 1);
   lcd3.print("Riego:");
+  sensorValueYL = analogRead(sensorSuelo);
 }
 void sueloSeco(){
   inicioSuelo();
-  //digitalWrite(bombaRiego,HIGH);
+  digitalWrite(bombaRiego,HIGH);
   lcd3.setCursor(8, 0);
   lcd3.print("Seco   ");
   lcd3.setCursor(7, 1);
   lcd3.print("Encendido");
+  sensorValueYL = analogRead(sensorSuelo);
 }
 void sueloHumedo(){
   inicioSuelo();
-  //digitalWrite(bombaRiego,HIGH);
   lcd3.setCursor(8, 0);
   lcd3.print("Humedo ");
   lcd3.setCursor(7, 1);
   lcd3.print("Encendido");
+  sensorValueYL = analogRead(sensorSuelo);
 }
 void sueloMojado(){
-  //digitalWrite(bombaRiego,LOW);
+  digitalWrite(bombaRiego,LOW);
   inicioSuelo();
   lcd3.setCursor(8, 0);
   lcd3.print("Mojado ");
   lcd3.setCursor(7, 1);
   lcd3.print("Apagado  ");
+  sensorValueYL = analogRead(sensorSuelo);
 }
 /****** FUNCIONES ENVIO DE MENSAJE ******/
 void mensaje_sms(){
@@ -253,9 +260,9 @@ void loop() {
           ILUMINACION ******/
   temp = dht.readTemperature();
   humedad = dht.readHumidity();
-  sensorValue = analogRead(A5); 
+  sensorValueMQ = analogRead(sensorHumo); 
   sensorValueLDR = analogRead (sensorLDR);
-  sensorSuelo = analogRead(A1);
+  sensorValueYL = analogRead(sensorSuelo);
 
   /****** FUNCIONAMIENTO TEMPERATURA ******/
   if (temp>=25)
@@ -274,25 +281,22 @@ void loop() {
   { 
     calefaccionOff();
    }
+
    /****** FUNCIONAMIENTO DETECTOR DE HUMO ******/
-  /*if(sensorValue < 1500 && sensorValue >= 400)
-  {
-    detectado();
-  }*/
-    if(sensorValue < 1500 && sensorValue >= 400 && temp>=25)
+    if(sensorValueMQ < 1500 && sensorValueMQ >= 400 && temp>=25)
   {
     incendio();
     detectado();
   }
-  else if(sensorValue < 1500 && sensorValue >= 400)
+  else if(sensorValueMQ < 1500 && sensorValueMQ >= 400)
   {
     extraccion();
   }
-  else if (sensorValue < 400 && sensorValue >= 100)
+  else if (sensorValueMQ < 400 && sensorValueMQ >= 100)
   {
     despejado();
   }
-  else if (sensorValue < 100 )
+  else if (sensorValueMQ < 100 )
   {
     correccion();
   }
@@ -307,17 +311,23 @@ void loop() {
     luzOn();
   }
   /****** FUNCIONAMIENTO SENSOR DE SUELO  ******/
-  /*if(sensorSuelo >= 1000){
+  /*if(sensorValueYL >= 1000){
     sensorDesconectado();
   }*/
-  if(sensorSuelo <= 999 && sensorSuelo >= 600){
+  /*if(sensorValueYL <= 999 && sensorValueYL >= 600){
    sueloSeco();
+   //sueloMojado();
+  }*/
+  if(sensorValueYL >= 800){
+   sueloSeco();
+   //sueloMojado();
   }
-  else if(sensorSuelo <= 599 && sensorSuelo >= 370){
+  /*else if(sensorValueYL <= 599 && sensorValueYL >= 370){
    sueloHumedo();
-  }
-   else if(sensorSuelo < 370){
+  }*/
+   else if(sensorValueYL <= 370){
    sueloMojado();
+   //sueloSeco();
   }
   delay(1000);
 }
