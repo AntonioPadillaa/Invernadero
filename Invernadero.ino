@@ -281,7 +281,6 @@ void loop() {
   { 
     calefaccionOff();
    }
-
    /****** FUNCIONAMIENTO DETECTOR DE HUMO ******/
     if(sensorValueMQ < 1500 && sensorValueMQ >= 400 && temp>=25)
   {
@@ -300,7 +299,6 @@ void loop() {
   {
     correccion();
   }
-
   /****** FUNCIONAMIENTO LUZ AUTOMATICA  ******/
    if (sensorValueLDR <= 800) 
   {   
@@ -311,23 +309,11 @@ void loop() {
     luzOn();
   }
   /****** FUNCIONAMIENTO SENSOR DE SUELO  ******/
-  /*if(sensorValueYL >= 1000){
-    sensorDesconectado();
-  }*/
-  /*if(sensorValueYL <= 999 && sensorValueYL >= 600){
-   sueloSeco();
-   //sueloMojado();
-  }*/
   if(sensorValueYL >= 800){
    sueloSeco();
-   //sueloMojado();
   }
-  /*else if(sensorValueYL <= 599 && sensorValueYL >= 370){
-   sueloHumedo();
-  }*/
    else if(sensorValueYL <= 370){
-   sueloMojado();
-   //sueloSeco();
+   sueloMojado(); 
   }
   delay(1000);
 }
